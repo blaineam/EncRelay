@@ -38,9 +38,9 @@ foreach([$directory, ...rglob($directory."/*.{mp4,jpg,png,gif,jpeg,webm}", GLOB_
     if(
         is_file($filePath) 
         && (
-            strstr(MediaCrypto::getMime($filePath), 'image') !== false 
-            || strstr(MediaCrypto::getMime($filePath), 'video') !== false
-        )
+           strstr(MediaCrypto::getMime($filePath), 'image') !== false 
+           || strstr(MediaCrypto::getMime($filePath), 'video') !== false
+       )
     ) {
         MediaCrypto::encrypt($passphrase, $filePath, true);
     }
