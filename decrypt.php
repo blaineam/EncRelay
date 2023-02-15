@@ -31,13 +31,24 @@ function rglob($pattern, $flags = 0)
     }
     return $files;
 }
-
-foreach([$directory, ...rglob($directory."/*.{mp4,jpg,png,gif,jpeg,webm}", GLOB_BRACE)] as $filePath) {
+$progress = 0;
+$lastPercent = 0;
+echo PHP_EOL."Scanning Directory for files";
+$files = [$directory, ...rglob($directory."/*.{mp4,jpg,png,gif,jpeg,webm}", GLOB_BRACE)];
+$filesCount = count($files);
+echo PHP_EOL."File list determined with {$filesCount} total files";
+foreach($files as $filePath) {
     if(
         is_file($filePath) 
         && strstr(MediaCrypto::getMime($filePath), 'image') === false 
         && strstr(MediaCrypto::getMime($filePath), 'video') === false
     ) {
         MediaCrypto::decrypt($passphrase, $filePath, true);
+    }
+    $progress++;
+    $percent = round(($progress/$filesCount) * 100, 2);
+    if($percent - $lastPercent >= 2) {
+        echo PHP_EOL.PHP_EOL. "Overall Progress: {$percent}%".PHP_EOL.PHP_EOL;
+        $lastPercent = $percent;
     }
 }
