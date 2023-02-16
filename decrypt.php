@@ -33,8 +33,16 @@ function rglob($pattern, $flags = 0)
 }
 $progress = 0;
 $lastPercent = 0;
-echo PHP_EOL."Scanning Directory for files";
-$files = [$directory, ...rglob($directory."/*.{mp4,jpg,png,gif,jpeg,webm}", GLOB_BRACE)];
+$cachePath = __DIR__.DIRECTORY_SEPARATOR."filelist.json";
+if(!is_file($cachePath)) {
+    echo PHP_EOL."Scanning Directory for files";
+    $files = [$directory, ...rglob($directory."/*.{mp4,jpg,png,gif,jpeg,webm}", GLOB_BRACE)];
+    file_put_contents($cachePath, json_encode(["progress" => $progress, "files" => $files]));
+} else {
+    $cache = json_decode(file_get_contents($cachePath), true);
+    $files = $cache["files"];
+    $progress = $cache["progress"];
+}
 $filesCount = count($files);
 echo PHP_EOL."File list determined with {$filesCount} total files";
 foreach($files as $filePath) {
@@ -46,9 +54,13 @@ foreach($files as $filePath) {
         MediaCrypto::decrypt($passphrase, $filePath, true);
     }
     $progress++;
+    file_put_contents($cachePath, json_encode(["progress" => $progress, "files" => $files]));
     $percent = round(($progress/$filesCount) * 100, 2);
     if($percent - $lastPercent >= 2) {
         echo PHP_EOL.PHP_EOL. "Overall Progress: {$percent}%".PHP_EOL.PHP_EOL;
         $lastPercent = $percent;
     }
 }
+
+unlink($cachePath);
+echo PHP_EOL."Done!";
