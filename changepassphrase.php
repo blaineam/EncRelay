@@ -5,16 +5,17 @@ if (PHP_SAPI != "cli") {
 }
 
 $options = getopt(
-    "p:d:",
-    ["passphrase:", "directory:"]
+    "p:d:n:",
+    ["passphrase:", "directory:", "newpassphrase:"]
 );
 
 $passphrase = isset($options['p']) ? $options['p'] : $options['passphrase'];
+$newpassphrase = isset($options['n']) ? $options['n'] : $options['newpassphrase'];
 
 $directory = isset($options['d']) ? $options['d'] : $options['directory'];
 
-if(empty($passphrase) || empty($directory)) {
-    die('Please provide a --passphrase and a --directory paramerter');
+if(empty($passphrase) || empty($directory) || empty($newpassphrase)) {
+    die('Please provide a --passphrase, --newpassphrase and a --directory paramerter');
 }
 
 
@@ -40,7 +41,7 @@ $cachePath = __DIR__.DIRECTORY_SEPARATOR."filelist.json";
 if (!is_file($directory)) {
     if(!is_file($cachePath)) {
         echo PHP_EOL."Scanning Directory for files";
-        $files = [$directory, ...rglob($directory."/*.{mp4,jpg,png,gif,jpeg,webm}", GLOB_BRACE)];
+        $files = [$directory, ...rglob($directory."/*.{mp4,jpg,png,gif,jpeg,js,webm}", GLOB_BRACE)];
         file_put_contents($cachePath, json_encode(["progress" => $progress, "files" => $files]));
     } else {
         $cache = json_decode(file_get_contents($cachePath), true);
@@ -58,13 +59,9 @@ foreach($files as $index => $filePath) {
     }
     if(
         is_file($filePath)
-        && (
-           strstr(MediaCrypto::getMime($filePath), 'image') !== false
-           || strstr(MediaCrypto::getMime($filePath), 'video') !== false
-           || $filePath === $directory
-       )
     ) {
-        MediaCrypto::encrypt($passphrase, $filePath, true);
+        MediaCrypto::decrypt($passphrase, $filePath, true);
+        MediaCrypto::encrypt($newpassphrase, $filePath, true);
     }
     $progress++;
     file_put_contents($cachePath, json_encode(["progress" => $progress, "files" => $files]));

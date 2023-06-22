@@ -22,7 +22,7 @@ use MediaCrypto\MediaCrypto;
 
 function rglob($pattern, $flags = 0)
 {
-    $files = glob($pattern, $flags); 
+    $files = glob($pattern, $flags);
     foreach (glob(dirname($pattern).'/*', GLOB_ONLYDIR|GLOB_NOSORT) as $dir) {
         $files = array_merge(
             [],
@@ -34,22 +34,24 @@ function rglob($pattern, $flags = 0)
 $progress = 0;
 $lastPercent = 0;
 $cachePath = __DIR__.DIRECTORY_SEPARATOR."filelist.json";
-if(!is_file($cachePath)) {
-    echo PHP_EOL."Scanning Directory for files";
-    $files = [$directory, ...rglob($directory."/*.{mp4,jpg,png,gif,jpeg,webm}", GLOB_BRACE)];
-    file_put_contents($cachePath, json_encode(["progress" => $progress, "files" => $files]));
+if (!is_file($directory)) {
+    if(!is_file($cachePath)) {
+        echo PHP_EOL."Scanning Directory for files";
+        $files = [$directory, ...rglob($directory."/*.{mp4,jpg,png,gif,jpeg,webm,js}", GLOB_BRACE)];
+        file_put_contents($cachePath, json_encode(["progress" => $progress, "files" => $files]));
+    } else {
+        $cache = json_decode(file_get_contents($cachePath), true);
+        $files = $cache["files"];
+        $progress = $cache["progress"];
+    }
 } else {
-    $cache = json_decode(file_get_contents($cachePath), true);
-    $files = $cache["files"];
-    $progress = $cache["progress"];
+    $files = [$directory];
 }
 $filesCount = count($files);
 echo PHP_EOL."File list determined with {$filesCount} total files";
 foreach($files as $filePath) {
     if(
-        is_file($filePath) 
-        && strstr(MediaCrypto::getMime($filePath), 'image') === false 
-        && strstr(MediaCrypto::getMime($filePath), 'video') === false
+        is_file($filePath)
     ) {
         MediaCrypto::decrypt($passphrase, $filePath, true);
     }
