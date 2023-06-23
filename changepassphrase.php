@@ -1,5 +1,7 @@
 <?php
 
+error_reporting(E_ALL ^ E_NOTICE);
+
 if (PHP_SAPI != "cli") {
     die();
 }
@@ -53,17 +55,93 @@ if (!is_file($directory)) {
 }
 $filesCount = count($files);
 echo PHP_EOL."File list determined with {$filesCount} total files";
-foreach($files as $index => $filePath) {
-    if($index < $progress) {
-        continue;
+function get_processor_cores_number() {
+    if (PHP_OS_FAMILY == 'Windows') {
+        $cores = shell_exec('echo %NUMBER_OF_PROCESSORS%');
+    } else {
+        $cores = shell_exec('nproc');
     }
-    if(
-        is_file($filePath)
-    ) {
-        MediaCrypto::decrypt($passphrase, $filePath, true);
-        MediaCrypto::encrypt($newpassphrase, $filePath, true);
+
+    return (int) $cores;
+}
+$usableCores = (get_processor_cores_number() / 2);
+
+
+function runBatch($files, $newpassphrase, $passphrase, $cores) {
+    $procs = [];
+    $pipes = [];
+
+    $cmd = "php ./changepassphrase-worker.php -p $passphrase -n $newpassphrase -f";
+
+    $desc = [
+        0 => [ 'pipe', 'r' ],
+        1 => [ 'pipe', 'w' ],
+        2 => [ 'pipe', 'a' ],
+    ];
+
+    if (count($files) > $cores) {
+        throw Exception("batch is too big");
     }
-    $progress++;
+
+    for ( $i = 0; $i < count($files); $i++ ) {
+        $iCmd = $cmd . ' "' . $files[$i] . '"';
+        $proc = proc_open($iCmd, $desc, $pipes[ $i ], __DIR__);
+
+        $procs[ $i ] = $proc;
+    }
+
+    $stdins = array_column($pipes, 0);
+    $stdouts = array_column($pipes, 1);
+    $stderrs = array_column($pipes, 2);
+
+    while ( $procs ) {
+        foreach ( $procs as $i => $proc ) {
+            // @gzhegow > [OR] you can output while script is running (if child never finishes)
+            $read = [ $stdins[ $i ] ];
+            $write = [ $stdouts[ $i ], $stderrs[ $i ] ];
+            $except = [];
+            if (stream_select($read, $write, $except, $seconds = 0, $microseconds = 1000)) {
+                foreach ( $write as $stream ) {
+                    echo stream_get_contents($stream);
+                }
+            }
+
+            $status = proc_get_status($proc);
+
+            if (false === $status[ 'running' ]) {
+                $status = proc_close($proc);
+                unset($procs[ $i ]);
+
+                echo 'STATUS: ' . $status . PHP_EOL;
+            }
+
+            // @gzhegow > [OR] you can output once command finishes
+            // $status = proc_get_status($proc);
+            //
+            // if (false === $status[ 'running' ]) {
+            //     if ($content = stream_get_contents($stderrs[ $i ])) {
+            //         echo '[ERROR]' . $content . PHP_EOL;
+            //     }
+            //
+            //     echo stream_get_contents($stdouts[ $i ]) . PHP_EOL;
+            //
+            //     $status = proc_close($proc);
+            //     unset($procs[ $i ]);
+            //
+            //     echo 'STATUS: ' . $status . PHP_EOL;
+            // }
+        }
+
+        usleep(1); // give your computer one tick to decide what thread should be used
+    }
+
+}
+
+foreach(array_chunk(array_slice($files, $progress), $usableCores) as $index => $filesChunk) {
+    echo PHP_EOL."starting batch: $index";
+    runBatch($filesChunk, $newpassphrase, $passphrase, $usableCores);
+    echo PHP_EOL."Finished batch: $index";
+    $progress += $usableCores;
     file_put_contents($cachePath, json_encode(["progress" => $progress, "files" => $files]));
     $percent = round(($progress/$filesCount) * 100, 2);
     if($percent - $lastPercent >= 2) {
