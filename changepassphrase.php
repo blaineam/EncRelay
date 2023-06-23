@@ -64,7 +64,8 @@ function get_processor_cores_number() {
 
     return (int) $cores;
 }
-$usableCores = (get_processor_cores_number() / 2);
+
+$usableCores = round(get_processor_cores_number() * 0.75);
 
 
 function runBatch($files, $newpassphrase, $passphrase, $cores) {
