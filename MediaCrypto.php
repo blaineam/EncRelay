@@ -77,9 +77,9 @@ class MediaCrypto
         string $path,
         bool $enableOutput = false,
         bool $force = false,
+        bool $cleanup = false,
     )
     {
-
         if ($enableOutput) {
             echo "Decrypting: {$path}" . PHP_EOL;
         }
@@ -128,14 +128,35 @@ class MediaCrypto
         fclose($write);
 
         clearstatcache();
-        if($force === true || strstr(MediaCrypto::getMime($tempName), 'image') !== false
-        || strstr(MediaCrypto::getMime($tempName), 'video') !== false) {
+        $isMediaFile = strstr(MediaCrypto::getMime($tempName), 'image') !== false 
+        || strstr(MediaCrypto::getMime($tempName), 'video') !== false;
+        if(
+            $force === true 
+            || (
+                $cleanup === false 
+                && $isMediaFile
+            )
+        ) {
             copy($tempName, $path);
-        }else {
+        }else if (
+            $cleanup === true 
+            && !$isMediaFile
+        ) {
+            unlink($path);
             if ($enableOutput) {
-                echo "Unexpected Decrypted Filetype found, skipping decryption result" . PHP_EOL;
-            }    
-        }
+                echo "Cleaned Up corrupted encrypted file" . PHP_EOL;
+            }  
+        } else if (
+            $cleanup === false 
+            && $enableOutput
+        ) {
+            echo "Unexpected Decrypted Filetype found, skipping decryption result" . PHP_EOL;
+        }else if (
+            $cleanup === true 
+            && $enableOutput
+        ) {
+            echo "Decryption was successful, skipping cleanup" . PHP_EOL;
+        }  
         unlink($tempName);
     }
 
