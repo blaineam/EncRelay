@@ -65,7 +65,7 @@ function get_processor_cores_number() {
     return (int) $cores;
 }
 
-$usableCores = round(get_processor_cores_number() * 0.75);
+$usableCores = round(get_processor_cores_number() * 0.7);
 
 $tasks = array_slice($files, $progress);
 

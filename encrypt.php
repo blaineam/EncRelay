@@ -5,13 +5,15 @@ if (PHP_SAPI != "cli") {
 }
 
 $options = getopt(
-    "p:d:",
-    ["passphrase:", "directory:"]
+    "p:d:y:",
+    ["passphrase:", "directory:", "yes:"]
 );
 
 $passphrase = isset($options['p']) ? $options['p'] : $options['passphrase'];
 
 $directory = isset($options['d']) ? $options['d'] : $options['directory'];
+
+$force = isset($options['f']) ? true : isset($options['yes']);
 
 if(empty($passphrase) || empty($directory)) {
     die('Please provide a --passphrase and a --directory paramerter');
@@ -58,13 +60,8 @@ foreach($files as $index => $filePath) {
     }
     if(
         is_file($filePath)
-        && (
-           strstr(MediaCrypto::getMime($filePath), 'image') !== false
-           || strstr(MediaCrypto::getMime($filePath), 'video') !== false
-           || $filePath === $directory
-       )
     ) {
-        MediaCrypto::encrypt($passphrase, $filePath, true);
+        MediaCrypto::encrypt($passphrase, $filePath, true, null, $force);
     }
     $progress++;
     file_put_contents($cachePath, json_encode(["progress" => $progress, "files" => $files]));
