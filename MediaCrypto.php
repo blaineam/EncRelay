@@ -17,9 +17,19 @@ class MediaCrypto
         string $path,
         bool $enableOutput = false,
         int $chunkSize = null,
+        bool $force = false,
     )
     {
         $memory_limit = self::return_bytes(ini_get('memory_limit'));
+
+        clearstatcache();
+        if($force === false && strstr(MediaCrypto::getMime($path), 'image') == false
+        && strstr(MediaCrypto::getMime($path), 'video') == false) {
+            if ($enableOutput) {
+                echo "Unexpected Filetype found, skipping encryption" . PHP_EOL;
+            }    
+            return;
+        }
 
         if ($enableOutput) {
             echo "Encrypting: {$path}" . PHP_EOL;
@@ -65,7 +75,8 @@ class MediaCrypto
     public static function decrypt(
         string $passphrase,
         string $path,
-        bool $enableOutput = false
+        bool $enableOutput = false,
+        bool $force = false,
     )
     {
 
@@ -115,7 +126,16 @@ class MediaCrypto
 
         fclose($read);
         fclose($write);
-        copy($tempName, $path);
+
+        clearstatcache();
+        if($force === true || strstr(MediaCrypto::getMime($tempName), 'image') !== false
+        || strstr(MediaCrypto::getMime($tempName), 'video') !== false) {
+            copy($tempName, $path);
+        }else {
+            if ($enableOutput) {
+                echo "Unexpected Decrypted Filetype found, skipping decryption result" . PHP_EOL;
+            }    
+        }
         unlink($tempName);
     }
 
