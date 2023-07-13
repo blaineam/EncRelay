@@ -12,12 +12,39 @@ class MediaCrypto
         return $finfo->file($filePath);
     }
 
+    public static function encryptString(
+        string $passphrase,
+        string $data,
+        bool $gzip = false,
+    ) {
+        $tmpfile = tempnam(sys_get_temp_dir(), 'PVMA');
+        file_put_contents($tmpfile, $data);
+        self::encrypt($passphrase, $tmpfile, false, null, true, $gzip);
+        $result = file_get_contents($gzip ? ($tmpfile . "-gz") : $tmpfile);
+        unlink($gzip ? ($tmpfile . "-gz") : $tmpfile);
+        return $result;
+    }
+
+    public static function decryptString(
+        string $passphrase,
+        string $data,
+        bool $gzip = false,
+    ) {
+        $tmpfile = tempnam(sys_get_temp_dir(), 'PVMA');
+        file_put_contents($tmpfile, $data);
+        self::decrypt($passphrase, $tmpfile, false, true, false, $gzip);
+        $result = file_get_contents($gzip ? str_replace('-gz', '', $tmpfile) : $tmpfile);
+        unlink($gzip ? str_replace('-gz', '', $tmpfile) : $tmpfile);
+        return $result;
+    }
+
     public static function encrypt(
         string $passphrase,
         string $path,
         bool $enableOutput = false,
         int $chunkSize = null,
         bool $force = false,
+        bool $gzip = false,
     )
     {
         $memory_limit = self::return_bytes(ini_get('memory_limit'));
@@ -42,7 +69,13 @@ class MediaCrypto
         }
 
         $tempName = tempnam(sys_get_temp_dir(), "MedCrypt_");
-        $read = fopen($path, 'r');
+
+        if ($gzip) {
+            $newPath = tempnam(sys_get_temp_dir(), "MedCrypt_");
+            exec("gzip < " . escapeshellarg($path) . " > " . escapeshellarg($newPath));
+        }
+
+        $read = fopen($gzip? $newPath : $path, 'r');
         $write = fopen($tempName, 'w');
         $total = filesize($path);
         $progress = 0;
@@ -68,8 +101,12 @@ class MediaCrypto
 
         fclose($read);
         fclose($write);
-        copy($tempName, $path);
+        copy($tempName, $gzip ? ($path . "-gz") : $path);
         unlink($tempName);
+        if ($gzip) {
+            unlink($path);
+            unlink($newPath);
+        }
     }
 
     public static function decrypt(
@@ -78,8 +115,10 @@ class MediaCrypto
         bool $enableOutput = false,
         bool $force = false,
         bool $cleanup = false,
+        bool $gzip = false,
     )
     {
+
         if ($enableOutput) {
             echo "Decrypting: {$path}" . PHP_EOL;
         }
@@ -127,9 +166,14 @@ class MediaCrypto
         fclose($read);
         fclose($write);
 
+        if ($gzip) {
+            $newPath = tempnam(sys_get_temp_dir(), "MedCrypt_");
+            exec("gzip -d < " . escapeshellarg($tempName) . " > " . escapeshellarg($newPath));
+        }
+
         clearstatcache();
-        $isMediaFile = strstr(MediaCrypto::getMime($tempName), 'image') !== false 
-        || strstr(MediaCrypto::getMime($tempName), 'video') !== false;
+        $isMediaFile = strstr(MediaCrypto::getMime($gzip ? $newPath : $tempName), 'image') !== false 
+        || strstr(MediaCrypto::getMime($gzip ? $newPath : $tempName), 'video') !== false;
         if(
             $force === true 
             || (
@@ -137,7 +181,7 @@ class MediaCrypto
                 && $isMediaFile
             )
         ) {
-            copy($tempName, $path);
+            copy($gzip ? $newPath : $tempName, $gzip ? str_replace('-gz', '', $path) : $path);
         }else if (
             $cleanup === true 
             && !$isMediaFile
@@ -158,6 +202,10 @@ class MediaCrypto
             echo "Decryption was successful, skipping cleanup" . PHP_EOL;
         }  
         unlink($tempName);
+        if ($gzip) {
+            unlink($path);
+            unlink($newPath);
+        }
     }
 
     private static function getSaltAndKeyAndIv(string $passphrase)

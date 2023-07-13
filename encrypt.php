@@ -5,15 +5,17 @@ if (PHP_SAPI != "cli") {
 }
 
 $options = getopt(
-    "p:d:y:",
-    ["passphrase:", "directory:", "yes:"]
+    "p:d:y:g:",
+    ["passphrase:", "directory:", "yes:", "gzip:"]
 );
 
 $passphrase = isset($options['p']) ? $options['p'] : $options['passphrase'];
 
 $directory = isset($options['d']) ? $options['d'] : $options['directory'];
 
-$force = isset($options['f']) ? true : isset($options['yes']);
+$force = isset($options['y']) ? true : isset($options['yes']);
+
+$gzip = isset($options['g']) ? true : isset($options['gzip']);
 
 if(empty($passphrase) || empty($directory)) {
     die('Please provide a --passphrase and a --directory paramerter');
@@ -61,7 +63,7 @@ foreach($files as $index => $filePath) {
     if(
         is_file($filePath)
     ) {
-        MediaCrypto::encrypt($passphrase, $filePath, true, null, $force);
+        MediaCrypto::encrypt($passphrase, $filePath, true, null, $force, $gzip);
     }
     $progress++;
     file_put_contents($cachePath, json_encode(["progress" => $progress, "files" => $files]));
