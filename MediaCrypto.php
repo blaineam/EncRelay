@@ -20,8 +20,8 @@ class MediaCrypto
         $tmpfile = tempnam(sys_get_temp_dir(), 'PVMA');
         file_put_contents($tmpfile, $data);
         self::encrypt($passphrase, $tmpfile, false, null, true, $gzip);
-        $result = file_get_contents($gzip ? ($tmpfile . "-gz") : $tmpfile);
-        unlink($gzip ? ($tmpfile . "-gz") : $tmpfile);
+        $result = file_get_contents($gzip ? ($tmpfile . '-gz') : $tmpfile);
+        unlink($gzip ? ($tmpfile . '-gz') : $tmpfile);
         return $result;
     }
 
@@ -45,16 +45,15 @@ class MediaCrypto
         int $chunkSize = null,
         bool $force = false,
         bool $gzip = false,
-    )
-    {
+    ) {
         $memory_limit = self::return_bytes(ini_get('memory_limit'));
 
         clearstatcache();
         if($force === false && strstr(MediaCrypto::getMime($path), 'image') == false
         && strstr(MediaCrypto::getMime($path), 'video') == false) {
             if ($enableOutput) {
-                echo "Unexpected Filetype found, skipping encryption" . PHP_EOL;
-            }    
+                echo 'Unexpected Filetype found, skipping encryption' . PHP_EOL;
+            }
             return;
         }
 
@@ -68,11 +67,11 @@ class MediaCrypto
             $chunkSize = min($memory_limit / 8, 8192);
         }
 
-        $tempName = tempnam(sys_get_temp_dir(), "MedCrypt_");
+        $tempName = tempnam(sys_get_temp_dir(), 'MedCrypt_');
 
         if ($gzip) {
-            $newPath = tempnam(sys_get_temp_dir(), "MedCrypt_");
-            exec("gzip < " . escapeshellarg($path) . " > " . escapeshellarg($newPath));
+            $newPath = tempnam(sys_get_temp_dir(), 'MedCrypt_');
+            exec('gzip < ' . escapeshellarg($path) . ' > ' . escapeshellarg($newPath));
         }
 
         $read = fopen($gzip? $newPath : $path, 'r');
@@ -81,27 +80,27 @@ class MediaCrypto
         $progress = 0;
         $loggedProgress = 0;
         $keys = self::getSaltAndKeyAndIv($passphrase);
-        fwrite($write, json_encode(["salt" => $keys["salt"], "iv" => $keys["iv"]]) . "\n");
+        fwrite($write, json_encode(['salt' => $keys['salt'], 'iv' => $keys['iv']]) . "\n");
         while (!feof($read)) {
-            $chunk = self::encryptChunk(fread($read, $chunkSize), $keys["key"], $keys["iv"]);
-            fwrite($write, "{" . $chunk . "}\n");
+            $chunk = self::encryptChunk(fread($read, $chunkSize), $keys['key'], $keys['iv']);
+            fwrite($write, '{' . $chunk . "}\n");
             $progress += $chunkSize;
             if ($enableOutput) {
                 $output = min(round(($progress / $total) * 10, 3), 10);
                 if ($loggedProgress + 1 < $output) {
-                    echo ($output * 10) . "% ";
+                    echo ($output * 10) . '% ';
                     $loggedProgress = floor($output);
                 }
             }
         }
 
         if ($enableOutput) {
-            echo "100.0% " . PHP_EOL;
+            echo '100.0% ' . PHP_EOL;
         }
 
         fclose($read);
         fclose($write);
-        copy($tempName, $gzip ? ($path . "-gz") : $path);
+        copy($tempName, $gzip ? ($path . '-gz') : $path);
         unlink($tempName);
         if ($gzip) {
             unlink($path);
@@ -116,14 +115,13 @@ class MediaCrypto
         bool $force = false,
         bool $cleanup = false,
         bool $gzip = false,
-    )
-    {
+    ) {
 
         if ($enableOutput) {
             echo "Decrypting: {$path}" . PHP_EOL;
         }
 
-        $tempName = tempnam(sys_get_temp_dir(), "MedCrypt_");
+        $tempName = tempnam(sys_get_temp_dir(), 'MedCrypt_');
         $read = fopen($path, 'r');
         $write = fopen($tempName, 'w');
         $total = filesize($path);
@@ -132,19 +130,19 @@ class MediaCrypto
 
         $salts = json_decode(rtrim(fgets($read), "\r\n"), true);
         if(is_null($salts)) {
-            echo PHP_EOL."removing corrupted encrypted file";
+            echo PHP_EOL . 'removing corrupted encrypted file';
             unlink($tempName);
             unlink($path);
             return;
         }
 
-        $keys = self::getDecryptionKeyAndIv($passphrase, $salts["salt"], $salts["iv"]);
+        $keys = self::getDecryptionKeyAndIv($passphrase, $salts['salt'], $salts['iv']);
         while (!feof($read)) {
             $line = rtrim(fgets($read), "\r\n");
             $line = preg_replace('/^{/', '', $line);
             $line = preg_replace('/}$/', '', $line);
             if (strlen($line) > 0) {
-                $decrypted = self::decryptChunk($line, $keys["key"], $keys["iv"]);
+                $decrypted = self::decryptChunk($line, $keys['key'], $keys['iv']);
                 $chunk = $decrypted;
                 fwrite($write, $chunk);
 
@@ -152,7 +150,7 @@ class MediaCrypto
                     $progress += strlen($line);
                     $output = min(round(($progress / $total) * 10, 3), 10);
                     if ($loggedProgress + 1 < $output) {
-                        echo ($output * 10) . "% ";
+                        echo ($output * 10) . '% ';
                         $loggedProgress = floor($output);
                     }
                 }
@@ -160,47 +158,47 @@ class MediaCrypto
         }
 
         if ($enableOutput) {
-            echo "100.0% " . PHP_EOL;
+            echo '100.0% ' . PHP_EOL;
         }
 
         fclose($read);
         fclose($write);
 
         if ($gzip) {
-            $newPath = tempnam(sys_get_temp_dir(), "MedCrypt_");
-            exec("gzip -d < " . escapeshellarg($tempName) . " > " . escapeshellarg($newPath));
+            $newPath = tempnam(sys_get_temp_dir(), 'MedCrypt_');
+            exec('gzip -d < ' . escapeshellarg($tempName) . ' > ' . escapeshellarg($newPath));
         }
 
         clearstatcache();
-        $isMediaFile = strstr(MediaCrypto::getMime($gzip ? $newPath : $tempName), 'image') !== false 
+        $isMediaFile = strstr(MediaCrypto::getMime($gzip ? $newPath : $tempName), 'image') !== false
         || strstr(MediaCrypto::getMime($gzip ? $newPath : $tempName), 'video') !== false;
         if(
-            $force === true 
+            $force === true
             || (
-                $cleanup === false 
+                $cleanup === false
                 && $isMediaFile
             )
         ) {
             copy($gzip ? $newPath : $tempName, $gzip ? str_replace('-gz', '', $path) : $path);
-        }else if (
-            $cleanup === true 
+        } elseif (
+            $cleanup === true
             && !$isMediaFile
         ) {
             unlink($path);
             if ($enableOutput) {
-                echo "Cleaned Up corrupted encrypted file" . PHP_EOL;
-            }  
-        } else if (
-            $cleanup === false 
+                echo 'Cleaned Up corrupted encrypted file' . PHP_EOL;
+            }
+        } elseif (
+            $cleanup === false
             && $enableOutput
         ) {
-            echo "Unexpected Decrypted Filetype found, skipping decryption result" . PHP_EOL;
-        }else if (
-            $cleanup === true 
+            echo 'Unexpected Decrypted Filetype found, skipping decryption result' . PHP_EOL;
+        } elseif (
+            $cleanup === true
             && $enableOutput
         ) {
-            echo "Decryption was successful, skipping cleanup" . PHP_EOL;
-        }  
+            echo 'Decryption was successful, skipping cleanup' . PHP_EOL;
+        }
         unlink($tempName);
         if ($gzip) {
             unlink($path);
@@ -219,7 +217,7 @@ class MediaCrypto
         }
         $key = substr($salted, 0, 32);
         $iv = substr($salted, 32, 16);
-        return ["salt" => bin2hex($salt), "key" => bin2hex($key), "iv" => bin2hex($iv)];
+        return ['salt' => bin2hex($salt), 'key' => bin2hex($key), 'iv' => bin2hex($iv)];
     }
 
     private static function getDecryptionKeyAndIv(string $passphrase, string $salt, string $iv)
@@ -233,7 +231,7 @@ class MediaCrypto
             $result .= $md5[$i];
         }
         $key = substr($result, 0, 32);
-        return ["key" => bin2hex($key), "iv" => $iv];
+        return ['key' => bin2hex($key), 'iv' => $iv];
     }
 
     private static function encryptChunk($value, string $key, string $iv)
@@ -245,7 +243,7 @@ class MediaCrypto
     {
         // Use this line to decrypt base64 encrypted files if you have them.
         //return openssl_decrypt($data, 'aes-256-cbc', hex2bin($key), 0, hex2bin($iv));
-    
+
         return openssl_decrypt(base64_encode(self::z85_decode($data)), 'aes-256-cbc', hex2bin($key), 0, hex2bin($iv));
     }
 
@@ -257,8 +255,10 @@ class MediaCrypto
         switch ($last) {
             case 'g':
                 $val *= 1024;
+                // no break
             case 'm':
                 $val *= 1024;
+                // no break
             case 'k':
                 $val *= 1024;
         }
@@ -268,7 +268,7 @@ class MediaCrypto
     // Implements http://rfc.zeromq.org/spec:32
     // Ported from https://github.com/msealand/z85.node/blob/master/index.js
 
-    private static $encoder = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#";
+    private static $encoder = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#';
 
     private static $decoder = array(
         0x00, 0x44, 0x00, 0x54, 0x53, 0x52, 0x48, 0x00,
@@ -285,20 +285,20 @@ class MediaCrypto
         0x21, 0x22, 0x23, 0x4F, 0x00, 0x50, 0x00, 0x00
     );
 
-
-    private static function z85_encode ($data) {
+    private static function z85_encode($data)
+    {
         $encoder = self::$encoder;
         $decoder = self::$decoder;
-        if( !is_array($data) ) {
+        if(!is_array($data)) {
             $data = str_split($data);
         }
         if ((count($data) % 4) !== 0) {
             return null;
         }
 
-        $str = "";
+        $str = '';
         $byte_nbr = 0;
-        $size = count( $data );
+        $size = count($data);
         $value = 0;
         while ($byte_nbr < $size) {
             $characterCode = ord($data[$byte_nbr++]);
@@ -306,7 +306,7 @@ class MediaCrypto
             if (($byte_nbr % 4) === 0) {
                 $divisor = 85 * 85 * 85 * 85;
                 while ($divisor >= 1) {
-                    $idx =  bcmod(floor($value / $divisor), 85);
+                    $idx = bcmod(floor($value / $divisor), 85);
                     $str = $str . $encoder[$idx];
                     $divisor /= 85;
                 }
@@ -317,21 +317,22 @@ class MediaCrypto
         return $str;
     }
 
-    private static function z85_decode($string) {
+    private static function z85_decode($string)
+    {
         $encoder = self::$encoder;
         $decoder = self::$decoder;
-        if ((strlen( $string ) % 5) !== 0) {
+        if ((strlen($string) % 5) !== 0) {
             return null;
         }
 
         $dest = array();
         $byte_nbr = 0;
         $char_nbr = 0;
-        $string_len = strlen( $string );
+        $string_len = strlen($string);
         $value = 0;
         while ($char_nbr < $string_len) {
             $idx = ord($string[$char_nbr++]) - 32;
-            if (($idx < 0) || ($idx >= count( $decoder ))) {
+            if (($idx < 0) || ($idx >= count($decoder))) {
                 return;
             }
             $value = ($value * 85) + $decoder[$idx];
@@ -345,7 +346,7 @@ class MediaCrypto
             }
         }
 
-        return implode(array_map("chr", $dest));
+        return implode(array_map('chr', $dest));
     }
 
 }
