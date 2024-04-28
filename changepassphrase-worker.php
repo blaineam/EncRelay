@@ -1,12 +1,12 @@
 <?php
 
-if (PHP_SAPI != "cli") {
+if (PHP_SAPI != 'cli') {
     die();
 }
 
 $options = getopt(
-    "p:f:n:",
-    ["passphrase:", "file:", "newpassphrase:"]
+    'p:f:n:',
+    ['passphrase:', 'file:', 'newpassphrase:']
 );
 
 $passphrase = isset($options['p']) ? $options['p'] : $options['passphrase'];
@@ -18,8 +18,7 @@ if(empty($passphrase) || empty($file) || empty($newpassphrase) || !is_file($file
     die('Please provide a --passphrase, --newpassphrase and a --file paramerter');
 }
 
-
-include __DIR__.DIRECTORY_SEPARATOR.'MediaCrypto.php';
+include __DIR__ . DIRECTORY_SEPARATOR . 'MediaCrypto.php';
 
 use MediaCrypto\MediaCrypto;
 

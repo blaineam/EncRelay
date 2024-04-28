@@ -2,13 +2,13 @@
 
 error_reporting(E_ALL ^ E_NOTICE);
 
-if (PHP_SAPI != "cli") {
+if (PHP_SAPI != 'cli') {
     die();
 }
 
 $options = getopt(
-    "p:d:",
-    ["passphrase:", "directory:"]
+    'p:d:',
+    ['passphrase:', 'directory:']
 );
 
 $passphrase = isset($options['p']) ? $options['p'] : $options['passphrase'];
@@ -19,18 +19,15 @@ if(empty($passphrase) || empty($directory)) {
     die('Please provide a --passphrase, and a --directory paramerter');
 }
 
-
-include __DIR__.DIRECTORY_SEPARATOR.'MediaCrypto.php';
-
-use MediaCrypto\MediaCrypto;
+include __DIR__ . DIRECTORY_SEPARATOR . 'MediaCrypto.php';
 
 function rglob($pattern, $flags = 0)
 {
     $files = glob($pattern, $flags);
-    foreach (glob(dirname($pattern).'/*', GLOB_ONLYDIR|GLOB_NOSORT) as $dir) {
+    foreach (glob(dirname($pattern) . '/*', GLOB_ONLYDIR | GLOB_NOSORT) as $dir) {
         $files = array_merge(
             [],
-            ...[$files, rglob($dir . "/" . basename($pattern), $flags)]
+            ...[$files, rglob($dir . '/' . basename($pattern), $flags)]
         );
     }
     return $files;
@@ -38,23 +35,24 @@ function rglob($pattern, $flags = 0)
 
 $progress = 0;
 $lastPercent = 0;
-$cachePath = __DIR__.DIRECTORY_SEPARATOR."filelist.json";
+$cachePath = __DIR__ . DIRECTORY_SEPARATOR . 'filelist.json';
 if (!is_file($directory)) {
     if(!is_file($cachePath)) {
-        echo PHP_EOL."Scanning Directory for gif files";
-        $files = [$directory, ...rglob($directory."/*.{gif}", GLOB_BRACE)];
-        file_put_contents($cachePath, json_encode(["progress" => $progress, "files" => $files]));
+        echo PHP_EOL . 'Scanning Directory for gif files';
+        $files = [$directory, ...rglob($directory . '/*.{gif}', GLOB_BRACE)];
+        file_put_contents($cachePath, json_encode(['progress' => $progress, 'files' => $files]));
     } else {
         $cache = json_decode(file_get_contents($cachePath), true);
-        $files = $cache["files"];
-        $progress = $cache["progress"];
+        $files = $cache['files'];
+        $progress = $cache['progress'];
     }
 } else {
     $files = [$directory];
 }
 $filesCount = count($files);
-echo PHP_EOL."File list determined with {$filesCount} total files";
-function get_processor_cores_number() {
+echo PHP_EOL . "File list determined with {$filesCount} total files";
+function get_processor_cores_number()
+{
     if (PHP_OS_FAMILY == 'Windows') {
         $cores = shell_exec('echo %NUMBER_OF_PROCESSORS%');
     } else {
@@ -78,25 +76,25 @@ $desc = [
     1 => [ 'pipe', 'w' ],
     2 => [ 'pipe', 'a' ],
 ];
-while ( $procs || count($tasks) > 0 ) {
+while ($procs || count($tasks) > 0) {
     if(count($procs) < $usableCores) {
         $usedKeys = array_keys($procs);
-        $possibleKeys =  range(0, $usableCores);
+        $possibleKeys = range(0, $usableCores);
         $freeKeys = array_diff($possibleKeys, $usedKeys);
         foreach($freeKeys as $i) {
             $taskFile = array_shift($tasks);
-            while (is_file(str_replace(".gif", ".jpg", $taskFile))) {
+            while (is_file(str_replace('.gif', '.jpg', $taskFile))) {
                 $taskFile = array_shift($tasks);
             }
             $iCmd = $cmd . ' "' . $taskFile . '"';
             $proc = proc_open($iCmd, $desc, $pipes[$i], __DIR__);
             $procs[$i] = $proc;
-        }   
+        }
     }
     $stdins = array_column($pipes, 0);
     $stdouts = array_column($pipes, 1);
     $stderrs = array_column($pipes, 2);
-    foreach ( $procs as $i => $proc ) {
+    foreach ($procs as $i => $proc) {
         $status = proc_get_status($proc);
         if (false === $status[ 'running' ]) {
             if ($content = stream_get_contents($stderrs[ $i ])) {
@@ -106,10 +104,10 @@ while ( $procs || count($tasks) > 0 ) {
             $status = proc_close($proc);
             unset($procs[ $i ]);
             $progress++;
-            file_put_contents($cachePath, json_encode(["progress" => $progress, "files" => $files]));
-            $percent = round(($progress/$filesCount) * 100, 2);
+            file_put_contents($cachePath, json_encode(['progress' => $progress, 'files' => $files]));
+            $percent = round(($progress / $filesCount) * 100, 2);
             if($percent - $lastPercent >= 2) {
-                echo PHP_EOL.PHP_EOL. "Overall Progress: {$percent}%".PHP_EOL.PHP_EOL;
+                echo PHP_EOL . PHP_EOL . "Overall Progress: {$percent}%" . PHP_EOL . PHP_EOL;
                 $lastPercent = $percent;
             }
         }
@@ -118,4 +116,4 @@ while ( $procs || count($tasks) > 0 ) {
 }
 
 unlink($cachePath);
-echo PHP_EOL."Done!";
+echo PHP_EOL . 'Done!';
